@@ -67,21 +67,9 @@ PlasmaCore.ColorScope {
         anchors.fill: parent
         sourceSize.width: parent.width
         sourceSize.height: parent.height
-        //fillMode: Image.PreserveAspectCrop
+        fillMode: Image.PreserveAspectCrop
         //smooth: true
-        source: "bg.png"
-        ColorOverlay {
-            id: bg_black_col
-            anchors.fill: parent
-            color: "black"
-            opacity: 0.5
-            Behavior on opacity {
-                NumberAnimation {
-                    duration: PlasmaCore.Units.veryLongDuration * 2
-                    easing.type: Easing.InOutQuint
-                }
-            }
-        }
+        source: "bg.jpg"
     }
     FastBlur {
         id: bg_blur
@@ -90,6 +78,56 @@ PlasmaCore.ColorScope {
         radius: 50
     }
 
+
+    ShaderEffect {
+        id: wallpaperShader
+        anchors.fill: parent
+        supportsAtlasTextures: true
+        property real factor: 1;
+        property var source: ShaderEffectSource {
+            sourceItem: bg_blur
+            live: true
+            hideSource: true
+            textureMirroring: ShaderEffectSource.NoMirroring
+        }
+
+        readonly property real contrast: 0.65 * factor + (1 - factor)
+        readonly property real saturation: 1.6 * factor + (1 - factor)
+        readonly property real intensity: (wallpaperFader.lightColorScheme ? 1.7 : 0.6) * factor + (1 - factor)
+
+        readonly property real transl: (1.0 - contrast) / 2.0;
+        readonly property real rval: (1.0 - saturation) * 0.2126;
+        readonly property real gval: (1.0 - saturation) * 0.7152;
+        readonly property real bval: (1.0 - saturation) * 0.0722;
+
+        property var colorMatrix: Qt.matrix4x4(
+            contrast, 0,        0,        0.0,
+            0,        contrast, 0,        0.0,
+            0,        0,        contrast, 0.0,
+            transl,   transl,   transl,   1.0).times(Qt.matrix4x4(
+                rval + saturation, rval,     rval,     0.0,
+                gval,     gval + saturation, gval,     0.0,
+                bval,     bval,     bval + saturation, 0.0,
+                0,        0,        0,        1.0)).times(Qt.matrix4x4(
+                    intensity, 0,         0,         0,
+                    0,         intensity, 0,         0,
+                    0,         0,         intensity, 0,
+                    0,         0,         0,         1
+                ));
+
+        fragmentShader: `
+            uniform mediump mat4 colorMatrix;
+            uniform mediump sampler2D source;
+            varying mediump vec2 qt_TexCoord0;
+            uniform lowp float qt_Opacity;
+
+            void main(void)
+            {
+                mediump vec4 tex = texture2D(source, qt_TexCoord0);
+                gl_FragColor = tex * colorMatrix * qt_Opacity;
+            }
+        `
+    }
 
 
 
@@ -334,32 +372,26 @@ PlasmaCore.ColorScope {
         }
     }
 
-    OpacityAnimator {
-        id: introAnimation
-        running: false
-        target: content
-        from: 0
-        to: 1
-        duration: PlasmaCore.Units.veryLongDuration * 2
-        easing.type: Easing.InOutQuad
-    }
 
+     SequentialAnimation {
+         id: introAnimation
+         PauseAnimation { duration: 250 }
+         NumberAnimation {
+             target: content
+             property: "opacity"
+             to: 1
+             duration: PlasmaCore.Units.veryLongDuration * 2
+            easing.type: Easing.InOutQuad
 
-
-    Timer {
-        id: introAnimationTimer
-        interval: 250
-        onTriggered: {
-            introAnimation.running = true;
         }
     }
+
 
     property int stage
 
     onStageChanged: {
         if (stage == 2) {
-            introAnimationTimer.running=true;
-            //introAnimation.running = true;
+            introAnimation.running = true;
             wallpaperFader.alwaysShowClock=false;
             lockScreenRoot.uiVisible=false;
         } else if (stage == 5) {
