@@ -14,6 +14,7 @@ import QtGraphicalEffects 1.0
 import org.kde.plasma.core 2.0 as PlasmaCore
 import org.kde.plasma.components 3.0 as PlasmaComponents3
 import org.kde.plasma.workspace.components 2.0 as PW
+import org.kde.kcoreaddons 1.0 as KCoreAddons
 
 import "../components"
 import "../components/animation"
@@ -68,7 +69,7 @@ PlasmaCore.ColorScope {
             sourceSize.width: parent.width
             sourceSize.height: parent.height
             fillMode: Image.PreserveAspectCrop
-            //smooth: true
+            smooth: true
             source: "bg.jpg"
         }
 
@@ -160,17 +161,21 @@ PlasmaCore.ColorScope {
             Layout.alignment: Qt.AlignBaseline
         }
 
+        KCoreAddons.KUser {
+            id: kuser
+        }
         ListModel {
             id: users
 
             Component.onCompleted: {
                 users.append({
-                    name: kscreenlocker_userName,
-                    realName: kscreenlocker_userName,
-                    icon: kscreenlocker_userImage,
+                    name: kuser.fullName,
+                    realName: kuser.fullName,
+                    icon: kuser.faceIconUrl,
                 })
             }
         }
+
 
         StackView {
             id: mainStack
